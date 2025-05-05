@@ -1,4 +1,4 @@
-name: Deploy Lambdas + FastAPI Backend (FULL)
+name: Deploy Lambdas + FastAPI (todo en orden)
 
 on:
   push:
@@ -19,46 +19,46 @@ env:
 
 jobs:
   deploy_full_stack:
-    name: Full Infra Deployment
+    name: Deploy Lambdas, Step Function y FastAPI
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout repo
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: 🔐 Configure AWS credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: 🐳 Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: 🏗️ Build & Push Lambda Scraper
-        run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_scraper }} -f $DOCKERFILE_SCRAPER .
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_scraper }}
-
-      - name: 🏗️ Build & Push Lambda Volatilidad
-        run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }} -f $DOCKERFILE_VOL .
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }}
-
-      - name: 🏗️ Build & Push FastAPI Backend
-        run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }} -f $DOCKERFILE_API .
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }}
-
-      - name: ⚙️ Setup Terraform
+      - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name: 🔄 Terraform Init
+      - name: Terraform Init
         run: terraform -chdir=terraform init
 
-      - name: 🚀 Terraform Apply (FULL STACK)
+      - name: Terraform Apply - Crear infraestructura completa
         run: terraform -chdir=terraform apply -auto-approve
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build & Push Lambda Scraper
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_scraper }} -f $DOCKERFILE_SCRAPER .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_scraper }}
+
+      - name: Build & Push Lambda Volatilidad
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }} -f $DOCKERFILE_VOL .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }}
+
+      - name: Build & Push FastAPI Backend
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }} -f $DOCKERFILE_API .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }}
