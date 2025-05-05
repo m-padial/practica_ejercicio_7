@@ -1,64 +1,64 @@
-name: Deploy Lambdas + FastAPI (todo en orden)
+name: Deploy Lambdas and api
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 env:
   AWS_REGION: eu-west-1
   ECR_REPOSITORY: mi-lambda-functions
-  TF_VAR_aws_region: eu-west-1
-  TF_VAR_ecr_repo_name: mi-lambda-functions
-  TF_VAR_image_tag_scraper: scraper
-  TF_VAR_image_tag_vol: volatilidad
-  TF_VAR_image_tag_api: api
-  DOCKERFILE_SCRAPER: Dockerfiles/Dockerfile_scraper
+  IMAGE_TAG_SCRAPER: scraper
+  IMAGE_TAG_VOL: volatilidad
+  IMAGE_TAG_DASH: dash
+  DOCKERFILE_SCRAPER: Dockerfiles/Dockerfile_scaper
   DOCKERFILE_VOL: Dockerfiles/Dockerfile_volatilidad
-  DOCKERFILE_API: Dockerfiles/Dockerfile_api
+  DOCKERFILE_DASH: Dockerfiles/Dockerfile_api
 
 jobs:
-  deploy_full_stack:
-    name: Deploy Lambdas, Step Function y FastAPI
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+      - uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.6.6
+          terraform_version: 1.5.7
 
-      - name: Terraform Init
-        run: terraform -chdir=terraform init
+      - run: terraform init
+        working-directory: terraform
 
-      - name: Terraform Apply - Crear infraestructura completa
-        run: terraform -chdir=terraform apply -auto-approve
+      - run: |
+          terraform apply -auto-approve \
+            -target=aws_ecr_repository.lambda_repository \
+            -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}"
+        working-directory: terraform
 
-      - name: Login to Amazon ECR
-        id: login-ecr
+      - id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build & Push Lambda Scraper
-        run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_scraper }} -f $DOCKERFILE_SCRAPER .
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_scraper }}
+      - run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_SCRAPER }} -f ${{ env.DOCKERFILE_SCRAPER }} .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_SCRAPER }}
 
-      - name: Build & Push Lambda Volatilidad
-        run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }} -f $DOCKERFILE_VOL .
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }}
+      - run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_VOL }} -f ${{ env.DOCKERFILE_VOL }} .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_VOL }}
 
-      - name: Build & Push FastAPI Backend
+    
         run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }} -f $DOCKERFILE_API .
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }}
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_API }} -f ${{ env.DOCKERFILE_API }} .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_API }}
+
+      - run: |
+          terraform apply -auto-approve \
+            -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}" \
+            -var="image_tag_scraper=${{ env.IMAGE_TAG_SCRAPER }}" \
+            -var="image_tag_vol=${{ env.IMAGE_TAG_VOL }}" \
+            -var="image_tag_api=${{ env.IMAGE_TAG_API }}"
+        working-directory: terraform
