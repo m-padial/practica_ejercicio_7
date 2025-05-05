@@ -1,4 +1,4 @@
-name: Deploy Lambdas and api
+name: Deploy Lambdas and API
 
 on:
   push:
@@ -9,10 +9,10 @@ env:
   ECR_REPOSITORY: mi-lambda-functions
   IMAGE_TAG_SCRAPER: scraper
   IMAGE_TAG_VOL: volatilidad
-  IMAGE_TAG_DASH: dash
-  DOCKERFILE_SCRAPER: Dockerfiles/Dockerfile_scaper
+  IMAGE_TAG_API: api
+  DOCKERFILE_SCRAPER: Dockerfiles/Dockerfile_scraper
   DOCKERFILE_VOL: Dockerfiles/Dockerfile_volatilidad
-  DOCKERFILE_DASH: Dockerfiles/Dockerfile_api
+  DOCKERFILE_API: Dockerfiles/Dockerfile_api
 
 jobs:
   deploy:
@@ -30,10 +30,12 @@ jobs:
         with:
           terraform_version: 1.5.7
 
-      - run: terraform init
+      - name: Terraform Init
+        run: terraform init
         working-directory: terraform
 
-      - run: |
+      - name: Terraform Apply - Crear Repositorio ECR
+        run: |
           terraform apply -auto-approve \
             -target=aws_ecr_repository.lambda_repository \
             -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}"
@@ -42,20 +44,23 @@ jobs:
       - id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - run: |
+      - name: Build & Push Lambda Scraper
+        run: |
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_SCRAPER }} -f ${{ env.DOCKERFILE_SCRAPER }} .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_SCRAPER }}
 
-      - run: |
+      - name: Build & Push Lambda Volatilidad
+        run: |
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_VOL }} -f ${{ env.DOCKERFILE_VOL }} .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_VOL }}
 
-    
+      - name: Build & Push API FastAPI
         run: |
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_API }} -f ${{ env.DOCKERFILE_API }} .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_API }}
 
-      - run: |
+      - name: Terraform Apply - Desplegar Infraestructura
+        run: |
           terraform apply -auto-approve \
             -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}" \
             -var="image_tag_scraper=${{ env.IMAGE_TAG_SCRAPER }}" \
