@@ -37,7 +37,8 @@ resource "aws_iam_role_policy" "step_function_policy" {
 # --- ✅ Asociar la política al rol (obligatorio) ---
 resource "aws_iam_role_policy_attachment" "step_function_policy_attachment" {
   role       = aws_iam_role.step_function_role.name
-  policy_arn = aws_iam_role_policy.step_function_policy.arn
+  policy_arn = aws_iam_policy.step_function_policy.arn
+
 }
 
 # --- Step Function: Scraping → Calcular Volatilidad ---
