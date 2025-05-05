@@ -47,6 +47,11 @@ resource "aws_iam_role_policy_attachment" "lambda_policy_attach" {
   policy_arn = aws_iam_policy.lambda_policy.arn
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_ecr_read_access" {
+  role       = aws_iam_role.lambda_exec_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
 resource "aws_lambda_function" "scraping_lambda" {
   function_name = "scraping_opciones_futuros"
   package_type  = "Image"
@@ -56,7 +61,8 @@ resource "aws_lambda_function" "scraping_lambda" {
   memory_size   = 1536
 
   depends_on = [
-    aws_iam_role_policy_attachment.lambda_policy_attach
+    aws_iam_role_policy_attachment.lambda_policy_attach,
+    aws_iam_role_policy_attachment.lambda_ecr_read_access
   ]
 
   environment {
