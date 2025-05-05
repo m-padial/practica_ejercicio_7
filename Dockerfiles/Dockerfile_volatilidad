@@ -5,11 +5,11 @@ FROM public.ecr.aws/lambda/python:3.9
 WORKDIR /var/task
 
 # Copiar requirements e instalar dependencias
-COPY src/requirements.txt .
+COPY src/lambda/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código de la función Lambda
-COPY src/lambda_volatilidad.py .
+COPY src/lambda/lambda_volatilidad.py .
 
 # Comando de inicio para Lambda
 CMD ["lambda_volatilidad.lambda_handler"]
