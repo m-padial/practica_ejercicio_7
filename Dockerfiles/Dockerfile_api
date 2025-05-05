@@ -2,9 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY src/API/ .
+# Copiar todo el módulo src con su jerarquía
+COPY src/ ./src/
 
+# Copiar el requirements.txt desde su ubicación real
+COPY src/API/requirements.txt .
+
+# Instalar dependencias
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
+# Lanzar uvicorn apuntando al módulo correcto
 CMD ["uvicorn", "src.API.app_api:app", "--host", "0.0.0.0", "--port", "8000"]
-
