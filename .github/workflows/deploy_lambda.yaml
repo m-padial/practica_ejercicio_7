@@ -1,4 +1,4 @@
-name: Deploy Lambdas (Scraper + Volatilidad)
+name: Deploy Lambdas + FastAPI Backend (ordenado)
 
 on:
   push:
@@ -13,12 +13,14 @@ env:
   TF_VAR_ecr_repo_name: ${{ secrets.ECR_REPO_NAME }}
   TF_VAR_image_tag_scraper: scraper
   TF_VAR_image_tag_vol: volatilidad
+  TF_VAR_image_tag_api: api
   DOCKERFILE_SCRAPER: Dockerfiles/Dockerfile
   DOCKERFILE_VOL: Dockerfiles/Dockerfile_volatilidad
+  DOCKERFILE_API: Dockerfiles/Dockerfile_api
 
 jobs:
-  deploy:
-    name: Build & Deploy Lambdas
+  deploy_lambdas_and_pipeline:
+    name: Deploy Lambdas + Step Function
     runs-on: ubuntu-latest
 
     steps:
@@ -57,5 +59,46 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=terraform init
 
-      - name: Terraform Apply
-        run: terraform -chdir=terraform apply -auto-approve
+      - name: Terraform Apply - Desplegar Step Function y Lambdas
+        run: terraform -chdir=terraform apply -target=aws_sfn_state_machine.pipeline_scraper_volatilidad -auto-approve
+
+      - name: Ejecutar y Esperar Step Function (null_resource)
+        run: terraform -chdir=terraform apply -target=null_resource.run_pipeline_api -auto-approve
+
+  deploy_api:
+    name: Deploy FastAPI Backend
+    runs-on: ubuntu-latest
+    needs: deploy_lambdas_and_pipeline  # Espera a que terminen las Lambdas + Step Function
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region $AWS_REGION \
+            | docker login --username AWS --password-stdin $ECR_URL
+
+      - name: Build & Push FastAPI Backend Image
+        run: |
+          docker build -t $ECR_REPO:${{ env.TF_VAR_image_tag_api }} -f $DOCKERFILE_API .
+          docker tag $ECR_REPO:${{ env.TF_VAR_image_tag_api }} $ECR_URL:${{ env.TF_VAR_image_tag_api }}
+          docker push $ECR_URL:${{ env.TF_VAR_image_tag_api }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        run: terraform -chdir=terraform init
+
+      - name: Terraform Apply - Desplegar API
+        run: terraform -chdir=terraform apply -target=aws_apprunner_service.api_backend -auto-approve
