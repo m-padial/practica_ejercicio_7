@@ -1,3 +1,6 @@
+# --- Obtener ID de cuenta AWS (si no lo tienes ya en otro archivo) ---
+# data "aws_caller_identity" "current" {}
+
 # --- Rol IAM para Step Function ---
 resource "aws_iam_role" "step_function_role" {
   name = "step_function_execution_role"
@@ -14,10 +17,9 @@ resource "aws_iam_role" "step_function_role" {
   })
 }
 
-# --- Política: Permitir invocar Lambdas desde Step Function ---
-resource "aws_iam_role_policy" "step_function_policy" {
+# --- Política gestionada: Permitir invocar Lambdas desde Step Function ---
+resource "aws_iam_policy" "step_function_policy" {
   name = "step_function_lambda_permissions"
-  role = aws_iam_role.step_function_role.id
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -34,11 +36,10 @@ resource "aws_iam_role_policy" "step_function_policy" {
   })
 }
 
-# --- ✅ Asociar la política al rol (obligatorio) ---
+# --- Adjuntar la política al rol ---
 resource "aws_iam_role_policy_attachment" "step_function_policy_attachment" {
   role       = aws_iam_role.step_function_role.name
   policy_arn = aws_iam_policy.step_function_policy.arn
-
 }
 
 # --- Step Function: Scraping → Calcular Volatilidad ---
@@ -81,7 +82,5 @@ resource "aws_sfn_state_machine" "pipeline_scraper_volatilidad" {
     }
   })
 
-  depends_on = [
-    aws_iam_role_policy_attachment.step_function_policy_attachment
-  ]
+  depends_on = [aws_iam_role_policy_attachment.step_function_policy_attachment]
 }
