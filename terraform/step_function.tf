@@ -1,4 +1,7 @@
-# IAM role para Step Function
+# --- Obtener ID de cuenta para interpolación en políticas ---
+data "aws_caller_identity" "current" {}
+
+# --- Rol IAM para Step Function ---
 resource "aws_iam_role" "step_function_role" {
   name = "step_function_execution_role"
 
@@ -14,7 +17,7 @@ resource "aws_iam_role" "step_function_role" {
   })
 }
 
-# Permisos para que Step Function invoque ambas Lambdas
+# --- Política: Permitir invocar Lambdas desde Step Function ---
 resource "aws_iam_role_policy" "step_function_policy" {
   name = "step_function_lambda_permissions"
   role = aws_iam_role.step_function_role.id
@@ -34,7 +37,7 @@ resource "aws_iam_role_policy" "step_function_policy" {
   })
 }
 
-# Step Function: Scraping → Volatilidad
+# --- Step Function: Scraping → Calcular Volatilidad ---
 resource "aws_sfn_state_machine" "pipeline_scraper_volatilidad" {
   name     = "pipeline_scraper_volatilidad"
   role_arn = aws_iam_role.step_function_role.arn
@@ -45,8 +48,11 @@ resource "aws_sfn_state_machine" "pipeline_scraper_volatilidad" {
     States = {
       "Scrapear datos" = {
         Type     = "Task",
-        Resource = aws_lambda_function.scraping_lambda.arn,
-        Next     = "Calcular volatilidad",
+        Resource = "arn:aws:states:::lambda:invoke",
+        Parameters = {
+          FunctionName = aws_lambda_function.scraping_lambda.arn
+        },
+        Next = "Calcular volatilidad",
         Retry = [{
           ErrorEquals     = ["States.ALL"],
           IntervalSeconds = 2,
@@ -56,8 +62,11 @@ resource "aws_sfn_state_machine" "pipeline_scraper_volatilidad" {
       },
       "Calcular volatilidad" = {
         Type     = "Task",
-        Resource = aws_lambda_function.lambda_volatilidad.arn,
-        End      = true,
+        Resource = "arn:aws:states:::lambda:invoke",
+        Parameters = {
+          FunctionName = aws_lambda_function.lambda_volatilidad.arn
+        },
+        End = true,
         Retry = [{
           ErrorEquals     = ["States.ALL"],
           IntervalSeconds = 2,
