@@ -33,6 +33,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        run: terraform -chdir=terraform init
+
+      - name: Terraform Apply - Crear Repositorio ECR
+        run: |
+          terraform -chdir=terraform apply \
+            -target=aws_ecr_repository.lambda_repository \
+            -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}" \
+            -auto-approve
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
@@ -47,19 +62,15 @@ jobs:
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }} -f $DOCKERFILE_VOL .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
+      - name: Terraform Apply - Lambdas + Step Function
+        run: terraform -chdir=terraform apply \
+          -target=aws_sfn_state_machine.pipeline_scraper_volatilidad \
+          -auto-approve
 
-      - name: Terraform Init
-        run: terraform -chdir=terraform init
-
-      - name: Terraform Apply (Step Function + Lambdas)
-        run: terraform -chdir=terraform apply -target=aws_sfn_state_machine.pipeline_scraper_volatilidad -auto-approve
-
-      - name: Ejecutar Step Function y Esperar
-        run: terraform -chdir=terraform apply -target=null_resource.run_pipeline_api -auto-approve
+      - name: Ejecutar y Esperar Step Function
+        run: terraform -chdir=terraform apply \
+          -target=null_resource.run_pipeline_api \
+          -auto-approve
 
   deploy_api:
     name: Deploy FastAPI Backend
@@ -81,7 +92,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build & Push FastAPI
+      - name: Build & Push FastAPI Backend
         run: |
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }} -f $DOCKERFILE_API .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }}
@@ -94,5 +105,7 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=terraform init
 
-      - name: Terraform Apply (API Backend)
-        run: terraform -chdir=terraform apply -target=aws_apprunner_service.api_backend -auto-approve
+      - name: Terraform Apply - App Runner API
+        run: terraform -chdir=terraform apply \
+          -target=aws_apprunner_service.api_backend \
+          -auto-approve
