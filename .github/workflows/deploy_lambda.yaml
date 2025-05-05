@@ -1,4 +1,4 @@
-name: Deploy Lambdas + FastAPI (automático)
+name: Deploy Lambdas + FastAPI Backend (FULL)
 
 on:
   push:
@@ -18,84 +18,47 @@ env:
   DOCKERFILE_API: Dockerfiles/Dockerfile_api
 
 jobs:
-  deploy_lambdas_and_pipeline:
-    name: Deploy Lambdas + Step Function
+  deploy_full_stack:
+    name: Full Infra Deployment
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: 🧾 Checkout repo
         uses: actions/checkout@v3
 
-      - name: Configure AWS credentials
+      - name: 🔐 Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
-
-      - name: Terraform Init
-        run: terraform -chdir=terraform init
-
-      - name: Terraform Apply - Crear Repositorio ECR
-        run: terraform -chdir=terraform apply -target=aws_ecr_repository.lambda_repository -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}" -auto-approve
-
-      - name: Login to Amazon ECR
+      - name: 🐳 Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build & Push Lambda Scraper
+      - name: 🏗️ Build & Push Lambda Scraper
         run: |
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_scraper }} -f $DOCKERFILE_SCRAPER .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_scraper }}
 
-      - name: Build & Push Lambda Volatilidad
+      - name: 🏗️ Build & Push Lambda Volatilidad
         run: |
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }} -f $DOCKERFILE_VOL .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_vol }}
 
-      - name: Terraform Apply - Lambdas + Step Function
-        run: terraform -chdir=terraform apply -target=aws_sfn_state_machine.pipeline_scraper_volatilidad -auto-approve
-
-      - name: Ejecutar y Esperar Step Function
-        run: terraform -chdir=terraform apply -target=null_resource.run_pipeline_api -auto-approve
-
-  deploy_api:
-    name: Deploy FastAPI Backend
-    runs-on: ubuntu-latest
-    needs: deploy_lambdas_and_pipeline
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Build & Push FastAPI Backend
+      - name: 🏗️ Build & Push FastAPI Backend
         run: |
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }} -f $DOCKERFILE_API .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.TF_VAR_image_tag_api }}
 
-      - name: Setup Terraform
+      - name: ⚙️ Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name: Terraform Init
+      - name: 🔄 Terraform Init
         run: terraform -chdir=terraform init
 
-      - name: Terraform Apply - App Runner API
-        run: terraform -chdir=terraform apply -target=aws_apprunner_service.api_backend -auto-approve
+      - name: 🚀 Terraform Apply (FULL STACK)
+        run: terraform -chdir=terraform apply -auto-approve
