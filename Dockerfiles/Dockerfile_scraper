@@ -42,7 +42,7 @@ ENV PATH="${PATH}:/usr/bin"
 
 # Instalar dependencias Python
 COPY src/lambda/requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir -r src/lambda/requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código de Lambda
 COPY src/lambda/lambda_scraper.py src/lambda/scraping.py ./
