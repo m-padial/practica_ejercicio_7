@@ -1,0 +1,53 @@
+name: Deploy FastAPI Backend
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_REPO: ${{ secrets.ECR_REPO }}
+  ECR_URL: ${{ secrets.ECR_URL }}
+  TF_VAR_aws_region: eu-west-1
+  TF_VAR_ecr_repo_name: ${{ secrets.ECR_REPO_NAME }}
+  TF_VAR_image_tag_api: api
+  DOCKERFILE_API: Dockerfiles/Dockerfile_api
+
+jobs:
+  deploy:
+    name: Build & Deploy FastAPI Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region $AWS_REGION \
+            | docker login --username AWS --password-stdin $ECR_URL
+
+      - name: Build & Push FastAPI Image
+        run: |
+          docker build -t $ECR_REPO:${{ env.TF_VAR_image_tag_api }} -f $DOCKERFILE_API .
+          docker tag $ECR_REPO:${{ env.TF_VAR_image_tag_api }} $ECR_URL:${{ env.TF_VAR_image_tag_api }}
+          docker push $ECR_URL:${{ env.TF_VAR_image_tag_api }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        run: terraform -chdir=terraform init
+
+      - name: Terraform Apply (API only)
+        run: terraform -chdir=terraform apply -target=aws_apprunner_service.api_backend -auto-approve

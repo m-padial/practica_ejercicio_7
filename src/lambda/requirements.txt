@@ -1,0 +1,13 @@
+dash
+plotly
+streamlit
+mibian
+selenium
+webdriver-manager
+matplotlib
+pandas
+scipy
+requests
+gunicorn
+boto3
+

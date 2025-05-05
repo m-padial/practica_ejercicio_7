@@ -1,0 +1,51 @@
+FROM public.ecr.aws/lambda/python:3.11
+
+# Instalar dependencias
+RUN yum install -y \
+    unzip \
+    wget \
+    curl \
+    fontconfig \
+    freetype \
+    alsa-lib \
+    atk \
+    cups-libs \
+    gtk3 \
+    libXcomposite \
+    libXcursor \
+    libXdamage \
+    libXext \
+    libXi \
+    libXrandr \
+    libXScrnSaver \
+    libXtst \
+    pango \
+    xdg-utils \
+    && yum clean all
+
+# Descargar Chrome + ChromeDriver v124 desde Chrome for Testing (bundle ZIP)
+RUN wget -O /tmp/chrome_bundle.zip https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/124.0.6367.91/linux64/chrome-linux64.zip && \
+    unzip /tmp/chrome_bundle.zip -d /opt/ && \
+    ln -s /opt/chrome-linux64/chrome /usr/bin/google-chrome && \
+    rm /tmp/chrome_bundle.zip
+
+# Descargar ChromeDriver v124 desde el mismo bundle
+RUN wget -O /tmp/chromedriver_bundle.zip https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/124.0.6367.91/linux64/chromedriver-linux64.zip && \
+    unzip /tmp/chromedriver_bundle.zip -d /opt/ && \
+    mv /opt/chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
+    chmod +x /usr/bin/chromedriver && \
+    rm /tmp/chromedriver_bundle.zip
+
+# Variables necesarias
+ENV CHROME_BIN=/usr/bin/google-chrome
+ENV PATH="${PATH}:/usr/bin"
+
+# Instalar dependencias Python
+COPY src/requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# Copiar el código de Lambda
+COPY src/lambda_scraper.py src/scraping.py ./
+
+# Handler de Lambda
+CMD ["lambda_scraper.lambda_handler"]
