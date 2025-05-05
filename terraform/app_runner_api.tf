@@ -12,6 +12,7 @@ resource "aws_iam_role" "apprunner_api_role" {
         Effect = "Allow",
         Principal = {
           Service = [
+            "build.apprunner.amazonaws.com",
             "tasks.apprunner.amazonaws.com"
           ]
         },
@@ -56,7 +57,7 @@ resource "null_resource" "run_pipeline_api" {
     command = <<EOT
       EXECUTION_ARN=$(aws stepfunctions start-execution \
         --state-machine-arn ${aws_sfn_state_machine.pipeline_scraper_volatilidad.arn} \
-        --region ${var.aws_region} \
+        --region eu-west-1 \
         --output text --query executionArn)
 
       echo "Step Function Execution ARN: $EXECUTION_ARN"
@@ -64,7 +65,7 @@ resource "null_resource" "run_pipeline_api" {
       while true; do
         STATUS=$(aws stepfunctions describe-execution \
           --execution-arn "$EXECUTION_ARN" \
-          --region ${var.aws_region} \
+          --region eu-west-1 \
           --query status --output text)
 
         echo "Estado actual: $STATUS"
