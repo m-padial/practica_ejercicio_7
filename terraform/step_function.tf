@@ -1,5 +1,3 @@
-# --- Obtener ID de cuenta para interpolación en políticas ---
-data "aws_caller_identity" "current" {}
 
 # --- Rol IAM para Step Function ---
 resource "aws_iam_role" "step_function_role" {
