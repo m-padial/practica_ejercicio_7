@@ -1,4 +1,5 @@
-
+# --- Obtener ID de cuenta AWS
+data "aws_caller_identity" "current" {}
 
 # --- Rol IAM para App Runner Backend con acceso a ECR y DynamoDB
 resource "aws_iam_role" "apprunner_api_role" {
