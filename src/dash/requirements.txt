@@ -1,6 +1,8 @@
 dash
-pandas
-requests
 plotly
+matplotlib
+pandas
+scipy
+requests
 gunicorn
-
+boto3
