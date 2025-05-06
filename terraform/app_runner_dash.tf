@@ -4,13 +4,18 @@ resource "aws_iam_role" "apprunner_dash_role" {
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow",
-      Principal = {
-        Service = "tasks.apprunner.amazonaws.com"
-      },
-      Action = "sts:AssumeRole"
-    }]
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = [
+            "build.apprunner.amazonaws.com",
+            "tasks.apprunner.amazonaws.com"
+          ]
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
   })
 }
 
@@ -25,8 +30,10 @@ resource "aws_apprunner_service" "dash_app" {
   service_name = "dash-volatilidad-app"
 
   depends_on = [
-    aws_apprunner_service.api_backend,
-    null_resource.run_pipeline_api
+    aws_apprunner_service.api_backend,                    # Asegura que la API esté desplegada
+    null_resource.run_pipeline_api,                       # Asegura que se hayan cargado los datos
+    aws_iam_role.apprunner_dash_role,                     # Espera a que el rol esté creado
+    aws_iam_role_policy_attachment.apprunner_dash_ecr_policy # Espera a que la política esté adjunta
   ]
 
   source_configuration {
