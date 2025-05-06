@@ -20,6 +20,7 @@ app.add_middleware(
 dynamodb = boto3.resource("dynamodb", region_name="eu-west-1")
 tabla = dynamodb.Table("OpcionesFuturosMiniIBEX")
 
+
 @app.get("/datos")
 def get_datos(vencimiento: str):
     response = tabla.scan()
@@ -47,3 +48,19 @@ def get_datos(vencimiento: str):
     df = df[df["tipo"].isin(["Call", "Put"])]
 
     return JSONResponse(content=df.to_dict(orient="records"))
+
+
+# --- Endpoint de prueba para ver los datos de DynamoDB
+@app.get("/debug-dynamodb")
+def debug_dynamodb():
+    try:
+        response = tabla.scan(Limit=5)
+        return {
+            "status": "ok",
+            "items": response.get("Items", []),
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+        }
