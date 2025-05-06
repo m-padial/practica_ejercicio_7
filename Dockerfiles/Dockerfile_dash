@@ -2,11 +2,15 @@ FROM python:3.11.5-slim-bullseye
 
 WORKDIR /app
 
-# Copiar código Dash
-COPY src/dash/ ./src/dash/
+# Copiar todo el módulo src con su jerarquía
+COPY src/ ./src/
+
+# Copiar el requirements.txt desde su ubicación real
+COPY src/dash/requirements.txt .
 
 # Instalar dependencias
-RUN pip install --no-cache-dir -r src/dash/requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
 
 EXPOSE 8050
 
