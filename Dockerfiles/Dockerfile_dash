@@ -1,0 +1,14 @@
+FROM python:3.11.5-slim-bullseye
+
+WORKDIR /app
+
+# Copiar código Dash
+COPY src/dash/ ./src/dash/
+
+# Instalar dependencias
+RUN pip install --no-cache-dir -r src/dash/requirements.txt
+
+EXPOSE 8050
+
+CMD ["gunicorn", "-b", "0.0.0.0:8050", "src.dash.app_dash:server"]
+

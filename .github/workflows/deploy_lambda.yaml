@@ -1,4 +1,4 @@
-name: Deploy Lambdas and API
+name: Deploy Lambdas, API and Dash
 
 on:
   push:
@@ -10,9 +10,11 @@ env:
   IMAGE_TAG_SCRAPER: scraper
   IMAGE_TAG_VOL: volatilidad
   IMAGE_TAG_API: api
+  IMAGE_TAG_DASH: dash
   DOCKERFILE_SCRAPER: Dockerfiles/Dockerfile_scraper
   DOCKERFILE_VOL: Dockerfiles/Dockerfile_volatilidad
   DOCKERFILE_API: Dockerfiles/Dockerfile_api
+  DOCKERFILE_DASH: Dockerfiles/Dockerfile_dash
 
 jobs:
   deploy:
@@ -59,11 +61,17 @@ jobs:
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_API }} -f ${{ env.DOCKERFILE_API }} .
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_API }}
 
+      - name: Build & Push Dash App
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_DASH }} -f ${{ env.DOCKERFILE_DASH }} .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG_DASH }}
+
       - name: Terraform Apply - Desplegar Infraestructura
         run: |
           terraform apply -auto-approve \
             -var="ecr_repo_name=${{ env.ECR_REPOSITORY }}" \
             -var="image_tag_scraper=${{ env.IMAGE_TAG_SCRAPER }}" \
             -var="image_tag_vol=${{ env.IMAGE_TAG_VOL }}" \
-            -var="image_tag_api=${{ env.IMAGE_TAG_API }}"
+            -var="image_tag_api=${{ env.IMAGE_TAG_API }}" \
+            -var="image_tag_dash=${{ env.IMAGE_TAG_DASH }}"
         working-directory: terraform

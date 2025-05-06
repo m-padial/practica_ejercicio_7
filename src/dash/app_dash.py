@@ -8,47 +8,40 @@ import os
 from dateutil import parser
 from decimal import Decimal
 
-# --- 1. Cargar datos desde DynamoDB
-dynamodb = boto3.resource("dynamodb", region_name="eu-west-1")
-tabla = dynamodb.Table("OpcionesFuturosMiniIBEX")
+# --- 1. Cargar datos desde FastAPI
+API_URL = os.environ.get("API_URL", "https://<tu-app-runner>.awsapprunner.com")
 
-def cargar_datos_desde_dynamo():
-    response = tabla.scan()
-    data = response["Items"]
+def cargar_datos_desde_api():
+    try:
+        response = requests.get(f"{API_URL}/debug-dynamodb")
+        if response.status_code == 200:
+            items = response.json().get("items", [])
+            df = pd.DataFrame(items)
 
-    while "LastEvaluatedKey" in response:
-        response = tabla.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
-        data.extend(response["Items"])
+            # Convertir tipos numéricos y fechas
+            df["strike"] = pd.to_numeric(df["strike"], errors="coerce")
+            df["precio"] = pd.to_numeric(df["precio"], errors="coerce")
+            df["\u03c3"] = pd.to_numeric(df["\u03c3"], errors="coerce")
 
-    # Filtrar solo opciones (evitar futuros)
-    data = [item for item in data if item.get("tipo_id", "").startswith("opcion#")]
+            def normalizar_fecha(fecha):
+                try:
+                    return pd.to_datetime(fecha).date()
+                except:
+                    return None
 
-    # Convertir Decimal → float
-    for item in data:
-        for k, v in item.items():
-            if isinstance(v, Decimal):
-                item[k] = float(v)
+            df["vencimiento"] = df["vencimiento"].apply(normalizar_fecha)
+            df["vencimiento_str"] = df["vencimiento"].astype(str)
+            return df
+        else:
+            print(f"⚠️ Error en API: {response.status_code}")
+            return pd.DataFrame()
+    except Exception as e:
+        print(f"❌ Error accediendo a la API: {e}")
+        return pd.DataFrame()
 
-    df = pd.DataFrame(data)
-
-    # Convertir tipos numéricos y fechas
-    df["strike"] = pd.to_numeric(df["strike"], errors="coerce")
-    df["precio"] = pd.to_numeric(df["precio"], errors="coerce")
-    df["σ"] = pd.to_numeric(df["σ"], errors="coerce")
-
-    def normalizar_fecha(fecha):
-        try:
-            return pd.to_datetime(fecha).date()
-        except:
-            return None
-
-    df["vencimiento"] = df["vencimiento"].apply(normalizar_fecha)
-    df["vencimiento_str"] = df["vencimiento"].astype(str)
-
-    return df
-
-df_resultado = cargar_datos_desde_dynamo()
+df_resultado = cargar_datos_desde_api()
 vencimientos = sorted(df_resultado["vencimiento_str"].dropna().unique())
+
 
 # --- 2. Inicializar Dash
 app = dash.Dash(__name__)
