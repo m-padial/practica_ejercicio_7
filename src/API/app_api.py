@@ -51,16 +51,16 @@ def get_datos(vencimiento: str):
 
 
 # --- Endpoint de prueba para ver los datos de DynamoDB
-@app.get("/debug-dynamodb")
-def debug_dynamodb():
+@app.get("/datos-todos")
+def get_todos_los_datos():
     try:
-        response = tabla.scan(Limit=5)
-        return {
-            "status": "ok",
-            "items": response.get("Items", []),
-        }
+        response = tabla.scan()
+        items = response.get("Items", [])
+
+        while "LastEvaluatedKey" in response:
+            response = tabla.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+            items.extend(response.get("Items", []))
+
+        return {"status": "ok", "items": items}
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e),
-        }
+        return {"status": "error", "message": str(e)}

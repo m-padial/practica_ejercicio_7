@@ -14,7 +14,7 @@ API_URL = os.environ.get("API_URL", "https://<tu-app-runner>.awsapprunner.com")
 
 def cargar_datos_desde_api():
     try:
-        response = requests.get(f"{API_URL}/debug-dynamodb")
+        response = requests.get(f"{API_URL}/datos-todos")
         if response.status_code == 200:
             items = response.json().get("items", [])
             df = pd.DataFrame(items)
