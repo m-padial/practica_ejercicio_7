@@ -7,7 +7,7 @@ webdriver-manager
 matplotlib
 pandas
 scipy
-requests
 gunicorn
 boto3
-
+requests
+python-dateutil

@@ -7,6 +7,7 @@ import boto3
 import os
 from dateutil import parser
 from decimal import Decimal
+import requests
 
 # --- 1. Cargar datos desde FastAPI
 API_URL = os.environ.get("API_URL", "https://<tu-app-runner>.awsapprunner.com")
@@ -21,7 +22,8 @@ def cargar_datos_desde_api():
             # Convertir tipos numéricos y fechas
             df["strike"] = pd.to_numeric(df["strike"], errors="coerce")
             df["precio"] = pd.to_numeric(df["precio"], errors="coerce")
-            df["\u03c3"] = pd.to_numeric(df["\u03c3"], errors="coerce")
+            df["σ"] = pd.to_numeric(df["σ"], errors="coerce")
+
 
             def normalizar_fecha(fecha):
                 try:
