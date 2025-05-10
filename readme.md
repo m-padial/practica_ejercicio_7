@@ -4,4 +4,4 @@ Este proyecto describe la arquitectura
 
 ## Arquitectura del Proyecto
 
-![Diagrama de Arquitectura](docs/arquitectura.drawio.pngpng)
+![Diagrama de Arquitectura](docs/arquitectura.png)
